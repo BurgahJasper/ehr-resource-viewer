@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import {
   ColumnDef,
   getCoreRowModel,
@@ -60,23 +60,30 @@ function useColumns(open: (row: ResourceWrapper) => void): ColumnDef<ResourceWra
       ),
     },
     {
+    id: "created",
     header: "Created",
     accessorFn: (r) => r.resource.metadata.createdTime,
     cell: ({ getValue }) => {
         const iso = String(getValue());
-        return <span className="text-sm text-muted-foreground" title={iso}>
-        {relative(iso)}
-        </span>;
+        const d = new Date(iso);
+        return (
+        <span className="text-sm" title={iso}>
+            {Number.isNaN(d.getTime()) ? "—" : format(d, "yyyy-MM-dd HH:mm")}
+        </span>
+        );
     },
     },
     {
+    id: "fetched",
     header: "Fetched",
     accessorFn: (r) => r.resource.metadata.fetchTime,
     cell: ({ getValue }) => {
         const iso = String(getValue());
-        return <span className="text-sm text-muted-foreground" title={iso}>
-        {relative(iso)}
-        </span>;
+        return (
+        <span className="text-sm text-muted-foreground" title={iso}>
+            {formatDistanceToNow(new Date(iso), { addSuffix: true })}
+        </span>
+        );
     },
     },
     {
@@ -90,7 +97,7 @@ function useColumns(open: (row: ResourceWrapper) => void): ColumnDef<ResourceWra
 export function ResourceTable({ data }: { data: ResourceWrapper[] }) {
   const [selected, setSelected] = useState<ResourceWrapper | null>(null);
   const [filter, setFilter] = useState("");
-  const [sorting, setSorting] = useState<SortingState>([{ id: "Fetched", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "fetched", desc: true }]);
   const columns = useColumns((r) => setSelected(r));
 
   const filtered = filter
