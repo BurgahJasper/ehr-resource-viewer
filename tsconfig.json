@@ -19,7 +19,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@/components/*": ["./src/components/*", "./components/*"],  // <— add src here
+      "@/components/*": ["./src/components/*", "./components/*"],
       "@/lib/*": ["./lib/*", "./src/lib/*"],
       "@/app/*": ["./app/*"],
       "@/types/*": ["./src/types/*"]

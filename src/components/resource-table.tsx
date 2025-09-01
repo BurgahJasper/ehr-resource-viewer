@@ -29,7 +29,6 @@ function relative(iso?: string) {
 }
 
 function StatePill({ state }: { state: ProcessingState }) {
-  // shadcn badge supports: "default" | "secondary" | "destructive" | "outline"
   const map: Record<ProcessingState, "default" | "secondary" | "destructive" | "outline"> = {
     PROCESSING_STATE_COMPLETED: "default",
     PROCESSING_STATE_PROCESSING: "secondary",
