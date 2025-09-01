@@ -7,6 +7,7 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  flexRender,
 } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,6 +17,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import type { ResourceWrapper, ProcessingState } from "@/types/ehr";
+
+console.log("ResourceTable from src is loaded");
+
 
 function relative(iso?: string) {
   if (!iso) return "—";
@@ -56,20 +60,24 @@ function useColumns(open: (row: ResourceWrapper) => void): ColumnDef<ResourceWra
       ),
     },
     {
-      header: "Created",
-      accessorFn: (r) => r.resource.metadata.createdTime,
-      cell: ({ getValue }) => {
+    header: "Created",
+    accessorFn: (r) => r.resource.metadata.createdTime,
+    cell: ({ getValue }) => {
         const iso = String(getValue());
-        return <span className="text-sm text-muted-foreground" title={iso}>{relative(iso)}</span>;
-      },
+        return <span className="text-sm text-muted-foreground" title={iso}>
+        {relative(iso)}
+        </span>;
+    },
     },
     {
-      header: "Fetched",
-      accessorFn: (r) => r.resource.metadata.fetchTime,
-      cell: ({ getValue }) => {
+    header: "Fetched",
+    accessorFn: (r) => r.resource.metadata.fetchTime,
+    cell: ({ getValue }) => {
         const iso = String(getValue());
-        return <span className="text-sm text-muted-foreground" title={iso}>{relative(iso)}</span>;
-      },
+        return <span className="text-sm text-muted-foreground" title={iso}>
+        {relative(iso)}
+        </span>;
+    },
     },
     {
       header: "State",
@@ -142,23 +150,27 @@ export function ResourceTable({ data }: { data: ResourceWrapper[] }) {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map(r => (
-                <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelected(r.original)}>
-                  {r.getVisibleCells().map(c => (
+                table.getRowModel().rows.map((r) => (
+                <TableRow
+                    key={r.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelected(r.original)}
+                >
+                    {r.getVisibleCells().map((c) => (
                     <TableCell key={c.id}>
-                      {c.renderValue() as React.ReactNode}
+                        {flexRender(c.column.columnDef.cell, c.getContext())}
                     </TableCell>
-                  ))}
+                    ))}
                 </TableRow>
-              ))
+                ))
             ) : (
-              <TableRow>
+                <TableRow>
                 <TableCell colSpan={columns.length} className="h-28 text-center text-sm text-muted-foreground">
-                  No resources found.
+                    No resources found.
                 </TableCell>
-              </TableRow>
+                </TableRow>
             )}
-          </TableBody>
+            </TableBody>
         </Table>
       </div>
 

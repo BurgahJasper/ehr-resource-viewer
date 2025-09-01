@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { initFirebase, ensureAnonAuth, resourcesQuery, seedDemoDocs } from "@/lib/firebase";
 import { onSnapshot } from "firebase/firestore";
 import { ResourceWrapper } from "@/types/ehr";
-import { ResourceTable } from "@/components/resource-table";
+import { ResourceTable } from "../src/components/resource-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
