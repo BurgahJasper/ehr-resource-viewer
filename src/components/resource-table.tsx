@@ -1,21 +1,21 @@
-"use client";
-
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
   ColumnDef,
   getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
   useReactTable,
-  flexRender,
 } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ResourceWrapper, ProcessingState } from "@/src/types/ehr";
+import { Input } from "@/components/ui/input";
+import type { ResourceWrapper, ProcessingState } from "@/types/ehr";
 
 function relative(iso?: string) {
   if (!iso) return "—";
@@ -24,16 +24,20 @@ function relative(iso?: string) {
   return formatDistanceToNow(d, { addSuffix: true });
 }
 
-function stateBadge(state: ProcessingState) {
-  const map: Record<string, string> = {
-    PROCESSING_STATE_COMPLETED: "success",
+function StatePill({ state }: { state: ProcessingState }) {
+  // shadcn badge supports: "default" | "secondary" | "destructive" | "outline"
+  const map: Record<ProcessingState, "default" | "secondary" | "destructive" | "outline"> = {
+    PROCESSING_STATE_COMPLETED: "default",
     PROCESSING_STATE_PROCESSING: "secondary",
     PROCESSING_STATE_NOT_STARTED: "outline",
     PROCESSING_STATE_FAILED: "destructive",
     PROCESSING_STATE_UNSPECIFIED: "outline",
   };
-  const variant = (map[state] ?? "outline") as any;
-  return <Badge variant={variant}>{state.replace("PROCESSING_STATE_", "")}</Badge>;
+  return (
+    <Badge variant={map[state]}>
+      {state.replace("PROCESSING_STATE_", "")}
+    </Badge>
+  );
 }
 
 function useColumns(open: (row: ResourceWrapper) => void): ColumnDef<ResourceWrapper>[] {
@@ -43,7 +47,8 @@ function useColumns(open: (row: ResourceWrapper) => void): ColumnDef<ResourceWra
       accessorFn: (r) => r.resource.metadata.resourceType,
       cell: ({ row }) => (
         <button
-          className="text-left underline-offset-2 hover:underline"
+          type="button"
+          className="text-left underline-offset-2 hover:underline font-medium"
           onClick={() => open(row.original)}
         >
           {row.original.resource.metadata.resourceType}
@@ -55,7 +60,7 @@ function useColumns(open: (row: ResourceWrapper) => void): ColumnDef<ResourceWra
       accessorFn: (r) => r.resource.metadata.createdTime,
       cell: ({ getValue }) => {
         const iso = String(getValue());
-        return <span title={iso}>{relative(iso)}</span>;
+        return <span className="text-sm text-muted-foreground" title={iso}>{relative(iso)}</span>;
       },
     },
     {
@@ -63,39 +68,75 @@ function useColumns(open: (row: ResourceWrapper) => void): ColumnDef<ResourceWra
       accessorFn: (r) => r.resource.metadata.fetchTime,
       cell: ({ getValue }) => {
         const iso = String(getValue());
-        return <span title={iso}>{relative(iso)}</span>;
+        return <span className="text-sm text-muted-foreground" title={iso}>{relative(iso)}</span>;
       },
     },
     {
       header: "State",
       accessorFn: (r) => r.resource.metadata.state,
-      cell: ({ getValue }) => stateBadge(getValue() as ProcessingState),
+      cell: ({ getValue }) => <StatePill state={getValue() as ProcessingState} />,
     },
   ], [open]);
 }
 
 export function ResourceTable({ data }: { data: ResourceWrapper[] }) {
   const [selected, setSelected] = useState<ResourceWrapper | null>(null);
+  const [filter, setFilter] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([{ id: "Fetched", desc: true }]);
   const columns = useColumns((r) => setSelected(r));
 
+  const filtered = filter
+    ? data.filter(d => {
+        const m = d.resource.metadata;
+        return (
+          m.resourceType.toLowerCase().includes(filter.toLowerCase()) ||
+          m.state.toLowerCase().includes(filter.toLowerCase())
+        );
+      })
+    : data;
+
   const table = useReactTable({
-    data,
+    data: filtered,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: { sorting },
+    onSortingChange: setSorting,
   });
 
   return (
     <>
-      <div className="rounded-xl border">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h2 className="text-xl font-semibold">Resources</h2>
+        <Input
+          placeholder="Filter by type or state…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="max-w-xs"
+        />
+      </div>
+
+      <div className="rounded-xl border bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id}>
-                {hg.headers.map(h => (
-                  <TableHead key={h.id}>
-                    {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                  </TableHead>
-                ))}
+                {hg.headers.map(h => {
+                  const label = h.isPlaceholder ? null : (h.column.columnDef.header as React.ReactNode);
+                  return (
+                    <TableHead
+                      key={h.id}
+                      className="whitespace-nowrap cursor-pointer select-none"
+                      onClick={h.column.getToggleSortingHandler()}
+                    >
+                      {label}
+                      {{
+                        asc: " ▲",
+                        desc: " ▼",
+                      }[h.column.getIsSorted() as string] ?? null}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -105,7 +146,7 @@ export function ResourceTable({ data }: { data: ResourceWrapper[] }) {
                 <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelected(r.original)}>
                   {r.getVisibleCells().map(c => (
                     <TableCell key={c.id}>
-                      {flexRender(c.column.columnDef.cell, c.getContext())}
+                      {c.renderValue() as React.ReactNode}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -113,7 +154,7 @@ export function ResourceTable({ data }: { data: ResourceWrapper[] }) {
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-28 text-center text-sm text-muted-foreground">
-                  No resources yet.
+                  No resources found.
                 </TableCell>
               </TableRow>
             )}
@@ -125,6 +166,7 @@ export function ResourceTable({ data }: { data: ResourceWrapper[] }) {
         <SheetContent side="right" className="sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>Resource details</SheetTitle>
+            <SheetDescription>Metadata and summaries for the selected resource.</SheetDescription>
           </SheetHeader>
           <ScrollArea className="h-[85vh] pr-4">
             {selected && (
@@ -134,26 +176,20 @@ export function ResourceTable({ data }: { data: ResourceWrapper[] }) {
                   <div className="font-medium">{selected.resource.metadata.resourceType}</div>
 
                   <div className="text-muted-foreground">Created</div>
-                  <div title={selected.resource.metadata.createdTime}>
-                    {relative(selected.resource.metadata.createdTime)}
-                  </div>
+                  <div title={selected.resource.metadata.createdTime}>{relative(selected.resource.metadata.createdTime)}</div>
 
                   <div className="text-muted-foreground">Fetched</div>
-                  <div title={selected.resource.metadata.fetchTime}>
-                    {relative(selected.resource.metadata.fetchTime)}
-                  </div>
+                  <div title={selected.resource.metadata.fetchTime}>{relative(selected.resource.metadata.fetchTime)}</div>
 
                   {selected.resource.metadata.processedTime && (
                     <>
                       <div className="text-muted-foreground">Processed</div>
-                      <div title={selected.resource.metadata.processedTime}>
-                        {relative(selected.resource.metadata.processedTime)}
-                      </div>
+                      <div title={selected.resource.metadata.processedTime}>{relative(selected.resource.metadata.processedTime)}</div>
                     </>
                   )}
 
                   <div className="text-muted-foreground">State</div>
-                  <div>{stateBadge(selected.resource.metadata.state)}</div>
+                  <div><StatePill state={selected.resource.metadata.state} /></div>
 
                   <div className="text-muted-foreground">FHIR Version</div>
                   <div>{selected.resource.metadata.version}</div>
